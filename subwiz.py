@@ -25,6 +25,10 @@ def fpdialog():
     return pathlib.Path(filedialog.askopenfilename())
 
 
+def get_pureName(name):
+    return str(name).split('/')[-1]
+
+
 def get_hash(name):
     readsize = 64 * 1024
     with open(name, 'rb') as f:
@@ -40,24 +44,25 @@ def get_url(action, mhash, language=''):
     return f"http://sandbox.thesubdb.com/?action={action}&hash={mhash}{language}"
 
 
-def get_languages(name, mhash):
+def get_languages(filePath, mhash):
     request = requests.get(get_url('search', mhash), headers=HEADER)
     assert request.status_code == 200, logging.error(
-        f"Cannot find any suitable language for: {name}")
+        f"Cannot find any suitable language for: {get_pureName(filePath)}")
     return request.text.split(',')
 
 
 def download(filePath, request):
     # NOTE the stream=True parameter below
-    with open(filePath.endswith('.srt'), 'wb') as f:
+    with open(filePath.with_suffix('.srt'), 'wb') as fp:
         for chunk in request.iter_content(chunk_size=8192):
-            if chunk:  # filter out keep-alive new chunks
-                f.write(chunk)
+            if chunk:
+                fp.write(chunk)
                 # f.flush()
 
 
-
-def get_sutitles(filePath, name, mhash, language):
+def get_sutitles(filePath, mhash, language):
+    name = get_pureName(filePath)
+    logging.debug(f"Name: {name}")
     request = requests.get(
         get_url('download', mhash, "&language=" + language), headers=HEADER)
     assert request.status_code == 200, logging.error(
@@ -67,10 +72,6 @@ def get_sutitles(filePath, name, mhash, language):
 
 # def prompt_lang():
 #
-
-
-# def subs_download():
-#     pass
 
 
 def init_logging(level):
@@ -98,14 +99,12 @@ def main(args):
     init_logging(logging.DEBUG)
 
     filePath = fpdialog()
-    movieName = str(filePath).split('/')[-1]
     mhash = get_hash(filePath)
     logging.debug(f"Filepath: {filePath}, md5 hash: {mhash}")
 
-    langs = get_languages(movieName, mhash)
+    langs = get_languages(filePath, mhash)
     logging.debug(langs)
-    pathlib.Path().with_suffix(SUFFIX)
-    subtitles = get_sutitles(filePath, movieName, mhash, "en")
+    subtitles = get_sutitles(filePath, mhash, "en")
     logging.debug(subtitles)
 
 
