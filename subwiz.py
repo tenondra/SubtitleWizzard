@@ -1,4 +1,5 @@
 import argparse
+import curses
 import hashlib
 import logging
 import os
@@ -8,11 +9,26 @@ import sys
 import tkinter as tk
 from tkinter import filedialog
 
+# ==============
+# CONSTANTS
+
+HEADER = {
+    "user-agent": "SubDB/1.0 (SubtitleWizzard:1.0; https://github.com/tenondra/SubtitleWizzard)"}
+SUFFIX = '.srt'
+
+# ==============
+
+
+def fpdialog():
+    root = tk.Tk()
+    root.withdraw()
+    return pathlib.Path(filedialog.askopenfilename())
+
 
 def get_hash(name):
     readsize = 64 * 1024
     with open(name, 'rb') as f:
-        size = os.path.getsize(name)
+        # size = os.path.getsize(name)
         data = f.read(readsize)
         f.seek(-readsize, os.SEEK_END)
         data += f.read(readsize)
@@ -20,23 +36,37 @@ def get_hash(name):
 
 
 def get_url(action, mhash, language=''):
-    return f"http://api.thesubdb.com/?action={action}&hash={mhash}{language}"
+    # return f"http://api.thesubdb.com/?action={action}&hash={mhash}{language}"
+    return f"http://sandbox.thesubdb.com/?action={action}&hash={mhash}{language}"
 
 
 def get_languages(name, mhash):
-    r = requests.get(get_url('search', mhash))
-    assert r.status_code == 200, logging.error(
+    request = requests.get(get_url('search', mhash), headers=HEADER)
+    assert request.status_code == 200, logging.error(
         f"Cannot find any suitable language for: {name}")
+    return request.text.split(',')
 
 
-def get_subs(name, mhash, language):
-    r = requests.get(get_url('download', mhash, f"&language={language}"))
-    assert r.status_code == 200, logging.error(
+def download(filePath, request):
+    # NOTE the stream=True parameter below
+    with open(filePath.endswith('.srt'), 'wb') as f:
+        for chunk in request.iter_content(chunk_size=8192):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+                # f.flush()
+
+
+
+def get_sutitles(filePath, name, mhash, language):
+    request = requests.get(
+        get_url('download', mhash, "&language=" + language), headers=HEADER)
+    assert request.status_code == 200, logging.error(
         f"Cannot download subtitles for: {name}")
+    download(filePath, request)
+    return name
 
-
-def prompt_lang():
-    pass
+# def prompt_lang():
+#
 
 
 # def subs_download():
@@ -67,16 +97,16 @@ def main(args):
     # args = parse_args(args)
     init_logging(logging.DEBUG)
 
-    root = tk.Tk()
-    root.withdraw()
-
-    filePath = pathlib.Path(filedialog.askopenfilename())
+    filePath = fpdialog()
+    movieName = str(filePath).split('/')[-1]
     mhash = get_hash(filePath)
     logging.debug(f"Filepath: {filePath}, md5 hash: {mhash}")
 
-    langs = prompt_lang()
-    header = {
-        "user-agent": "SubDB/1.0 (SubtitleBOX/1.0; https://github.com/sameera-madushan/SubtitleBOX.git)"}
+    langs = get_languages(movieName, mhash)
+    logging.debug(langs)
+    pathlib.Path().with_suffix(SUFFIX)
+    subtitles = get_sutitles(filePath, movieName, mhash, "en")
+    logging.debug(subtitles)
 
 
 def parse_args(args=None):
