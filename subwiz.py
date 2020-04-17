@@ -4,6 +4,7 @@ import hashlib
 import logging
 import os
 import pathlib
+import platform
 import requests
 import sys
 import tkinter as tk
@@ -26,7 +27,7 @@ def fpdialog():
 
 
 def get_pureName(name):
-    return str(name).split('/')[-1]
+    return str(name).split('\\')[-1] if platform.system() == 'Windows' else str(name).split('/')[-1]
 
 
 def get_hash(name):
@@ -51,13 +52,11 @@ def get_languages(filePath, mhash):
     return request.text.split(',')
 
 
-def download(filePath, request):
-    # NOTE the stream=True parameter below
+def save_file(filePath, request):
     with open(filePath.with_suffix('.srt'), 'wb') as fp:
         for chunk in request.iter_content(chunk_size=8192):
             if chunk:
                 fp.write(chunk)
-                # f.flush()
 
 
 def get_sutitles(filePath, mhash, language):
@@ -67,11 +66,8 @@ def get_sutitles(filePath, mhash, language):
         get_url('download', mhash, "&language=" + language), headers=HEADER)
     assert request.status_code == 200, logging.error(
         f"Cannot download subtitles for: {name}")
-    download(filePath, request)
-    return name
-
-# def prompt_lang():
-#
+    save_file(filePath, request)
+    return 0
 
 
 def init_logging(level):
@@ -104,8 +100,7 @@ def main(args):
 
     langs = get_languages(filePath, mhash)
     logging.debug(langs)
-    subtitles = get_sutitles(filePath, mhash, "en")
-    logging.debug(subtitles)
+    get_sutitles(filePath, mhash, "en")
 
 
 def parse_args(args=None):
