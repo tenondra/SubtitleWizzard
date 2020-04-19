@@ -95,16 +95,15 @@ def choose_folder():
     for filePath in movies:
         file_handle(filePath)
 
-
 def fpdialog():
     root = tk.Tk()
     root.title("Subtitle wizzard")
     frame = tk.Frame(root)
     frame.pack()
 
-    file_button = tk.Button(frame,
+    file_button = tk.Button(root.frame,
                             text="Single File",
-                            command=lambda:[choose_file(),root.destroy()],
+                            command=lambda: [choose_file(), root.destroy()],
                             width=20,
                             height=2,)
     file_button.pack(side=tk.LEFT)
