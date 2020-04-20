@@ -16,7 +16,7 @@ from tkinter import filedialog, messagebox
 # ==============
 # CONSTANTS
 
-DEVELOPMENT = True
+DEVELOPMENT = False
 HEADER = {
     "user-agent": "SubDB/1.0 (SubtitleWizzard:1.0; \
          https://github.com/tenondra/SubtitleWizzard)"}
@@ -34,12 +34,7 @@ def get_pureName(filePath):
 
 
 def is_media(filePath):
-    file = filetype.guess(str(filePath))
-    logging.debug(file)
-    if file is None:
-        return False
-    print(file.extension)
-    return True
+    return True if filetype.video(str(filePath)) else False
 
 
 def iter_directory(dirPath):
@@ -50,7 +45,7 @@ def iter_directory(dirPath):
     directory = dirPath.iterdir()
     for file in directory:
         if pathlib.Path(file).is_dir():
-            movies.append(iter_directory(file))
+            movies += (iter_directory(file))
         else:
             if is_media(file):
                 movies.append(file)
@@ -146,7 +141,13 @@ def choose_file():
     """
     root = tk.Tk()
     root.withdraw()
-    file_handle(pathlib.Path(filedialog.askopenfilename()))
+    filePath = pathlib.Path(filedialog.askopenfilename())
+    assert filePath != pathlib.Path('.'), "Not a valid path"
+    if is_media(filePath):
+        file_handle(filePath)
+    else:
+        messagebox.showerror(title="Not a media file",
+                             message="Selected file is not a valid media file")
 
 
 def choose_folder():
@@ -156,6 +157,8 @@ def choose_folder():
     root = tk.Tk()
     root.withdraw()
     dirPath = pathlib.Path(filedialog.askdirectory())
+    logging.debug(f"Dirpath:{dirPath}")
+    assert dirPath != pathlib.Path('.'), "Not a valid path"
     movies = iter_directory(dirPath)
     for filePath in movies:
         try:
