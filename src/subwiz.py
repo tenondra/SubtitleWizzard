@@ -7,21 +7,26 @@ import pathlib
 import platform
 import requests
 import sys
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
+
 
 # ==============
 # CONSTANTS
 
+DEVELOPMENT = True
 HEADER = {
-    "user-agent": "SubDB/1.0 (SubtitleWizzard:1.0; https://github.com/tenondra/SubtitleWizzard)"}
+    "user-agent": "SubDB/1.0 (SubtitleWizzard:1.0; \
+         https://github.com/tenondra/SubtitleWizzard)"}
 SUFFIX = '.srt'
 
 # ==============
 
 
 def get_pureName(fileName):
-    return str(fileName).split('\\')[-1] if platform.system() == 'Windows' else str(fileName).split('/')[-1]
+    return str(fileName).split('\\')[-1] if platform.system() == 'Windows' \
+        else str(fileName).split('/')[-1]
 
 
 def iter_movies(directory):
@@ -45,15 +50,20 @@ def get_hash(name):
 
 
 def get_url(action, mhash, language=''):
-    # For development only
-    return f"http://sandbox.thesubdb.com/?action={action}&hash={mhash}{language}"
-    # For normal use-case
-    # return f"http://api.thesubdb.com/?action={action}&hash={mhash}{language}"
+    return \
+        f"http://sandbox.thesubdb.com/?action={action}&hash={mhash}{language}" \
+        if DEVELOPMENT else \
+        f"http://api.thesubdb.com/?action={action}&hash={mhash}{language}"
 
 
 def get_languages(filePath, mhash):
-    request = requests.get(get_url('search', mhash), headers=HEADER)
-    assert request.status_code == 200, f"Cannot find any suitable language for: {get_pureName(filePath)}"
+    url = get_url('search', mhash)
+    try:
+        request = requests.get(url, headers=HEADER)
+    except requests.ConnectionError:
+        raise AssertionError("Unable to fetch url %s" % url)
+    assert request.status_code == 200, \
+        f"Cannot find any suitable language for: {get_pureName(filePath)}"
     return request.text.split(',')
 
 
@@ -66,9 +76,13 @@ def save_file(filePath, request):
 
 def get_sutitles(filePath, mhash, language):
     name = get_pureName(filePath)
+    url = get_url('download', mhash, "&language=" + language)
     logging.debug(f"Name: {name}")
-    request = requests.get(
-        get_url('download', mhash, "&language=" + language), headers=HEADER)
+    try:
+        request = requests.get(
+            url, headers=HEADER)
+    except requests.ConnectionError:
+        raise AssertionError("Unable to fetch url %s" % url)
     assert request.status_code == 200, f"Cannot download subtitles for: {name}"
     save_file(filePath, request)
 
@@ -95,26 +109,28 @@ def choose_folder():
     for filePath in movies:
         file_handle(filePath)
 
+
 def fpdialog():
     root = tk.Tk()
     root.title("Subtitle wizzard")
-    frame = tk.Frame(root)
-    frame.pack()
+    # frame = tk.Frame(root)
+    # frame.pack()
 
-    file_button = tk.Button(root.frame,
+    file_button = tk.Button(root,
                             text="Single File",
                             command=lambda: [choose_file(), root.destroy()],
                             width=20,
                             height=2,)
     file_button.pack(side=tk.LEFT)
-    dir_button = tk.Button(frame,
+    dir_button = tk.Button(root,
                            text="Folder",
-                           command=choose_folder,
+                           command=lambda: [choose_folder(), root.destroy()],
                            width=20,
                            height=2)
     dir_button.pack(side=tk.LEFT)
-
-    root.mainloop()
+    root.update_idletasks()
+    root.update()
+    root.wait_window()
 
 
 def init_logging(level):
@@ -139,13 +155,14 @@ def init_logging(level):
 
 def main(args):
     init_logging(logging.DEBUG)
-
     fpdialog()
 
 
 def entry_point(*args):
-    sys.exit(main(args))
+    # sys.exit(main(args))
+    main(args)
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    # sys.exit(main(sys.argv[1:]))
+    main(sys.argv[1:])
