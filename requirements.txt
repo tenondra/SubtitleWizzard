@@ -4,5 +4,6 @@ hashlib
 pathlib
 requests
 tkinter
+filetype
 # Needed in Windows only
 python -m pip install windows-curses
